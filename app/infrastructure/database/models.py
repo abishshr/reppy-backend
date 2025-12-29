@@ -67,6 +67,11 @@ class User(Base):
     # Fasting relationships
     fasting_sessions: Mapped[list["FastingSession"]] = relationship(back_populates="user")
     fasting_settings: Mapped["FastingSettings"] = relationship(back_populates="user", uselist=False)
+    # Supplement relationships
+    supplements: Mapped[list["Supplement"]] = relationship(back_populates="user")
+    supplement_logs: Mapped[list["SupplementLog"]] = relationship(back_populates="user")
+    # Blood work relationships
+    blood_work_panels: Mapped[list["BloodWorkPanel"]] = relationship(back_populates="user")
 
 
 class UserProfile(Base):
@@ -95,6 +100,9 @@ class UserProfile(Base):
         String(50)
     )  # omnivore, vegetarian, vegan, keto, etc.
     allergies: Mapped[list[str] | None] = mapped_column(JSON, default=list)
+    injuries: Mapped[list[str] | None] = mapped_column(JSON, default=list)  # Current injuries/limitations
+    medical_conditions: Mapped[list[str] | None] = mapped_column(JSON, default=list)  # Diabetes, hypertension, etc.
+    preferred_ingredients: Mapped[list[str] | None] = mapped_column(JSON, default=list)  # Ingredients user likes to cook with
     equipment: Mapped[list[str] | None] = mapped_column(
         JSON, default=list
     )  # home, gym, bodyweight
@@ -197,6 +205,31 @@ class MealLog(Base):
     sodium_mg_est: Mapped[float | None] = mapped_column(Float)
     saturated_fat_g_est: Mapped[float | None] = mapped_column(Float)
     cholesterol_mg_est: Mapped[float | None] = mapped_column(Float)
+
+    # Vitamin estimates (per meal)
+    vitamin_a_mcg_est: Mapped[float | None] = mapped_column(Float, nullable=True)
+    vitamin_c_mg_est: Mapped[float | None] = mapped_column(Float, nullable=True)
+    vitamin_d_mcg_est: Mapped[float | None] = mapped_column(Float, nullable=True)
+    vitamin_e_mg_est: Mapped[float | None] = mapped_column(Float, nullable=True)
+    vitamin_k_mcg_est: Mapped[float | None] = mapped_column(Float, nullable=True)
+    vitamin_b1_mg_est: Mapped[float | None] = mapped_column(Float, nullable=True)  # Thiamin
+    vitamin_b2_mg_est: Mapped[float | None] = mapped_column(Float, nullable=True)  # Riboflavin
+    vitamin_b3_mg_est: Mapped[float | None] = mapped_column(Float, nullable=True)  # Niacin
+    vitamin_b6_mg_est: Mapped[float | None] = mapped_column(Float, nullable=True)
+    vitamin_b9_mcg_est: Mapped[float | None] = mapped_column(Float, nullable=True)  # Folate
+    vitamin_b12_mcg_est: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # Mineral estimates (per meal)
+    calcium_mg_est: Mapped[float | None] = mapped_column(Float, nullable=True)
+    iron_mg_est: Mapped[float | None] = mapped_column(Float, nullable=True)
+    magnesium_mg_est: Mapped[float | None] = mapped_column(Float, nullable=True)
+    phosphorus_mg_est: Mapped[float | None] = mapped_column(Float, nullable=True)
+    potassium_mg_est: Mapped[float | None] = mapped_column(Float, nullable=True)
+    zinc_mg_est: Mapped[float | None] = mapped_column(Float, nullable=True)
+    selenium_mcg_est: Mapped[float | None] = mapped_column(Float, nullable=True)
+    copper_mcg_est: Mapped[float | None] = mapped_column(Float, nullable=True)
+    manganese_mg_est: Mapped[float | None] = mapped_column(Float, nullable=True)
+
     confidence: Mapped[float | None] = mapped_column(Float)  # 0.0 - 1.0
     notes: Mapped[str | None] = mapped_column(Text)
     image_url: Mapped[str | None] = mapped_column(String(500))
@@ -1119,3 +1152,206 @@ class FastingSettings(Base):
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="fasting_settings")
+
+
+# =============================================================================
+# Supplement Tracking
+# =============================================================================
+
+
+class Supplement(Base):
+    """User-defined supplement (vitamin pill, multivitamin, etc.)."""
+
+    __tablename__ = "supplements"
+
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4())
+    )
+    user_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE")
+    )
+    name: Mapped[str] = mapped_column(String(200))  # e.g., "Daily Multivitamin", "Vitamin D3"
+    brand: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    serving_size: Mapped[str | None] = mapped_column(String(100))  # e.g., "1 tablet", "2 capsules"
+
+    # Vitamin content per serving
+    vitamin_a_mcg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    vitamin_c_mg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    vitamin_d_mcg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    vitamin_e_mg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    vitamin_k_mcg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    vitamin_b1_mg: Mapped[float | None] = mapped_column(Float, nullable=True)  # Thiamin
+    vitamin_b2_mg: Mapped[float | None] = mapped_column(Float, nullable=True)  # Riboflavin
+    vitamin_b3_mg: Mapped[float | None] = mapped_column(Float, nullable=True)  # Niacin
+    vitamin_b6_mg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    vitamin_b9_mcg: Mapped[float | None] = mapped_column(Float, nullable=True)  # Folate
+    vitamin_b12_mcg: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # Mineral content per serving
+    calcium_mg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    iron_mg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    magnesium_mg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    phosphorus_mg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    potassium_mg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    zinc_mg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    selenium_mcg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    copper_mcg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    manganese_mg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    iodine_mcg: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # Other nutrients
+    omega3_mg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    biotin_mcg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    choline_mg: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # Metadata
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)  # User can archive supplements
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship(back_populates="supplements")
+    logs: Mapped[list["SupplementLog"]] = relationship(
+        back_populates="supplement", cascade="all, delete-orphan"
+    )
+
+
+class SupplementLog(Base):
+    """Log entry when user takes a supplement."""
+
+    __tablename__ = "supplement_logs"
+
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4())
+    )
+    user_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE")
+    )
+    supplement_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("supplements.id", ondelete="CASCADE")
+    )
+    servings: Mapped[float] = mapped_column(Float, default=1.0)  # Number of servings taken
+    logged_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship(back_populates="supplement_logs")
+    supplement: Mapped["Supplement"] = relationship(back_populates="logs")
+
+
+# =============================================================================
+# Blood Work Tracking
+# =============================================================================
+
+
+class BloodWorkPanel(Base):
+    """Blood work panel with lab results and AI analysis."""
+
+    __tablename__ = "blood_work_panels"
+
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4())
+    )
+    user_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE")
+    )
+
+    # Metadata
+    lab_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    test_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    report_image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    source: Mapped[str] = mapped_column(String(50), default="manual")  # manual, ocr, pdf_ocr
+    ocr_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # -------------------------------------------------------------------------
+    # Vitamins & Minerals (11 markers)
+    # -------------------------------------------------------------------------
+    vitamin_d_ng_ml: Mapped[float | None] = mapped_column(Float, nullable=True)
+    vitamin_b12_pg_ml: Mapped[float | None] = mapped_column(Float, nullable=True)
+    folate_ng_ml: Mapped[float | None] = mapped_column(Float, nullable=True)
+    iron_mcg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ferritin_ng_ml: Mapped[float | None] = mapped_column(Float, nullable=True)
+    tibc_mcg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)  # Total Iron Binding Capacity
+    vitamin_a_mcg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    vitamin_e_mg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    zinc_mcg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    magnesium_mg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    calcium_mg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # -------------------------------------------------------------------------
+    # Metabolic Panel (4 markers)
+    # -------------------------------------------------------------------------
+    fasting_glucose_mg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    hba1c_percent: Mapped[float | None] = mapped_column(Float, nullable=True)
+    insulin_miu_ml: Mapped[float | None] = mapped_column(Float, nullable=True)
+    homa_ir: Mapped[float | None] = mapped_column(Float, nullable=True)  # HOMA-IR index
+
+    # -------------------------------------------------------------------------
+    # Lipid Panel (5 markers)
+    # -------------------------------------------------------------------------
+    total_cholesterol_mg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ldl_mg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    hdl_mg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    triglycerides_mg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    vldl_mg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # -------------------------------------------------------------------------
+    # Hormones (7 markers)
+    # -------------------------------------------------------------------------
+    testosterone_total_ng_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    testosterone_free_pg_ml: Mapped[float | None] = mapped_column(Float, nullable=True)
+    estradiol_pg_ml: Mapped[float | None] = mapped_column(Float, nullable=True)
+    tsh_miu_l: Mapped[float | None] = mapped_column(Float, nullable=True)
+    t3_ng_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    t4_mcg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    cortisol_mcg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # -------------------------------------------------------------------------
+    # Complete Blood Count (8 markers)
+    # -------------------------------------------------------------------------
+    hemoglobin_g_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    hematocrit_percent: Mapped[float | None] = mapped_column(Float, nullable=True)
+    rbc_million_per_ul: Mapped[float | None] = mapped_column(Float, nullable=True)
+    wbc_thousand_per_ul: Mapped[float | None] = mapped_column(Float, nullable=True)
+    platelets_thousand_per_ul: Mapped[float | None] = mapped_column(Float, nullable=True)
+    mcv_fl: Mapped[float | None] = mapped_column(Float, nullable=True)  # Mean Corpuscular Volume
+    mch_pg: Mapped[float | None] = mapped_column(Float, nullable=True)  # Mean Corpuscular Hemoglobin
+    mchc_g_dl: Mapped[float | None] = mapped_column(Float, nullable=True)  # Mean Corpuscular Hemoglobin Concentration
+
+    # -------------------------------------------------------------------------
+    # Liver & Kidney Function (7 markers)
+    # -------------------------------------------------------------------------
+    alt_u_l: Mapped[float | None] = mapped_column(Float, nullable=True)  # Alanine Aminotransferase
+    ast_u_l: Mapped[float | None] = mapped_column(Float, nullable=True)  # Aspartate Aminotransferase
+    alp_u_l: Mapped[float | None] = mapped_column(Float, nullable=True)  # Alkaline Phosphatase
+    bilirubin_mg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    creatinine_mg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)
+    bun_mg_dl: Mapped[float | None] = mapped_column(Float, nullable=True)  # Blood Urea Nitrogen
+    egfr_ml_min: Mapped[float | None] = mapped_column(Float, nullable=True)  # Estimated GFR
+
+    # -------------------------------------------------------------------------
+    # AI Analysis Cache
+    # -------------------------------------------------------------------------
+    ai_analysis: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    ai_analyzed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship(back_populates="blood_work_panels")

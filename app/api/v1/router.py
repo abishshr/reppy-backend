@@ -6,6 +6,7 @@ from app.api.v1 import (
     achievements,
     activity,
     auth,
+    blood_work,
     challenges,
     chat,
     circadian,
@@ -21,6 +22,7 @@ from app.api.v1 import (
     progress,
     social,
     streak,
+    supplements,
     templates,
     water,
     workout_plans,
@@ -51,3 +53,5 @@ api_router.include_router(social.router, prefix="/social", tags=["social"])
 api_router.include_router(cycle.router, prefix="/cycle", tags=["cycle"])
 api_router.include_router(fasting.router, prefix="/fasting", tags=["fasting"])
 api_router.include_router(circadian.router, prefix="/circadian", tags=["circadian"])
+api_router.include_router(supplements.router, prefix="/supplements", tags=["supplements"])
+api_router.include_router(blood_work.router, prefix="/blood-work", tags=["blood-work"])

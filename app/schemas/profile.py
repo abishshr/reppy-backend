@@ -20,6 +20,9 @@ class ProfileCreate(BaseModel):
     goals: list[str] | None = Field(default_factory=list)
     diet_style: str | None = Field(None)
     allergies: list[str] | None = Field(default_factory=list)
+    injuries: list[str] | None = Field(default_factory=list)
+    medical_conditions: list[str] | None = Field(default_factory=list)
+    preferred_ingredients: list[str] | None = Field(default_factory=list)
     equipment: list[str] | None = Field(default_factory=list)
     timezone: str | None = Field(default="UTC")
     daily_steps_goal: int | None = Field(default=10000, ge=0, le=100000)
@@ -37,6 +40,9 @@ class ProfileUpdate(BaseModel):
     goals: list[str] | None = None
     diet_style: str | None = None
     allergies: list[str] | None = None
+    injuries: list[str] | None = None
+    medical_conditions: list[str] | None = None
+    preferred_ingredients: list[str] | None = None
     equipment: list[str] | None = None
     timezone: str | None = None
     daily_calorie_target: int | None = Field(None, ge=500, le=10000)
@@ -66,6 +72,9 @@ class ProfileResponse(BaseModel):
     goals: list[str]
     diet_style: str | None
     allergies: list[str]
+    injuries: list[str]
+    medical_conditions: list[str]
+    preferred_ingredients: list[str]
     equipment: list[str]
     timezone: str | None
     daily_calorie_target: int | None

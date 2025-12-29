@@ -27,6 +27,28 @@ class MealSuggestion(BaseModel):
     estimated_sodium_mg: float | None = Field(None, ge=0)
     estimated_saturated_fat_g: float | None = Field(None, ge=0)
     estimated_cholesterol_mg: float | None = Field(None, ge=0)
+    # Vitamin estimates
+    estimated_vitamin_a_mcg: float | None = Field(None, ge=0)
+    estimated_vitamin_c_mg: float | None = Field(None, ge=0)
+    estimated_vitamin_d_mcg: float | None = Field(None, ge=0)
+    estimated_vitamin_e_mg: float | None = Field(None, ge=0)
+    estimated_vitamin_k_mcg: float | None = Field(None, ge=0)
+    estimated_vitamin_b1_mg: float | None = Field(None, ge=0)  # Thiamin
+    estimated_vitamin_b2_mg: float | None = Field(None, ge=0)  # Riboflavin
+    estimated_vitamin_b3_mg: float | None = Field(None, ge=0)  # Niacin
+    estimated_vitamin_b6_mg: float | None = Field(None, ge=0)
+    estimated_vitamin_b9_mcg: float | None = Field(None, ge=0)  # Folate
+    estimated_vitamin_b12_mcg: float | None = Field(None, ge=0)
+    # Mineral estimates
+    estimated_calcium_mg: float | None = Field(None, ge=0)
+    estimated_iron_mg: float | None = Field(None, ge=0)
+    estimated_magnesium_mg: float | None = Field(None, ge=0)
+    estimated_phosphorus_mg: float | None = Field(None, ge=0)
+    estimated_potassium_mg: float | None = Field(None, ge=0)
+    estimated_zinc_mg: float | None = Field(None, ge=0)
+    estimated_selenium_mcg: float | None = Field(None, ge=0)
+    estimated_copper_mcg: float | None = Field(None, ge=0)
+    estimated_manganese_mg: float | None = Field(None, ge=0)
     confidence: float = Field(..., ge=0, le=1)
     notes: str | None = None  # Educational tips
     clarifying_questions: list[str] = Field(default_factory=list)
@@ -50,6 +72,28 @@ class MealLogCreate(BaseModel):
     sodium_mg_est: float | None = Field(None, ge=0)
     saturated_fat_g_est: float | None = Field(None, ge=0)
     cholesterol_mg_est: float | None = Field(None, ge=0)
+    # Vitamin estimates
+    vitamin_a_mcg_est: float | None = Field(None, ge=0)
+    vitamin_c_mg_est: float | None = Field(None, ge=0)
+    vitamin_d_mcg_est: float | None = Field(None, ge=0)
+    vitamin_e_mg_est: float | None = Field(None, ge=0)
+    vitamin_k_mcg_est: float | None = Field(None, ge=0)
+    vitamin_b1_mg_est: float | None = Field(None, ge=0)
+    vitamin_b2_mg_est: float | None = Field(None, ge=0)
+    vitamin_b3_mg_est: float | None = Field(None, ge=0)
+    vitamin_b6_mg_est: float | None = Field(None, ge=0)
+    vitamin_b9_mcg_est: float | None = Field(None, ge=0)
+    vitamin_b12_mcg_est: float | None = Field(None, ge=0)
+    # Mineral estimates
+    calcium_mg_est: float | None = Field(None, ge=0)
+    iron_mg_est: float | None = Field(None, ge=0)
+    magnesium_mg_est: float | None = Field(None, ge=0)
+    phosphorus_mg_est: float | None = Field(None, ge=0)
+    potassium_mg_est: float | None = Field(None, ge=0)
+    zinc_mg_est: float | None = Field(None, ge=0)
+    selenium_mcg_est: float | None = Field(None, ge=0)
+    copper_mcg_est: float | None = Field(None, ge=0)
+    manganese_mg_est: float | None = Field(None, ge=0)
     confidence: float = Field(..., ge=0, le=1)
     notes: str | None = None
     image_url: str | None = None
@@ -73,6 +117,28 @@ class MealLogResponse(BaseModel):
     sodium_mg_est: float | None
     saturated_fat_g_est: float | None
     cholesterol_mg_est: float | None
+    # Vitamin estimates
+    vitamin_a_mcg_est: float | None = None
+    vitamin_c_mg_est: float | None = None
+    vitamin_d_mcg_est: float | None = None
+    vitamin_e_mg_est: float | None = None
+    vitamin_k_mcg_est: float | None = None
+    vitamin_b1_mg_est: float | None = None
+    vitamin_b2_mg_est: float | None = None
+    vitamin_b3_mg_est: float | None = None
+    vitamin_b6_mg_est: float | None = None
+    vitamin_b9_mcg_est: float | None = None
+    vitamin_b12_mcg_est: float | None = None
+    # Mineral estimates
+    calcium_mg_est: float | None = None
+    iron_mg_est: float | None = None
+    magnesium_mg_est: float | None = None
+    phosphorus_mg_est: float | None = None
+    potassium_mg_est: float | None = None
+    zinc_mg_est: float | None = None
+    selenium_mcg_est: float | None = None
+    copper_mcg_est: float | None = None
+    manganese_mg_est: float | None = None
     confidence: float | None
     notes: str | None
     image_url: str | None

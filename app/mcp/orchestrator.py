@@ -171,13 +171,27 @@ class MCPOrchestrator:
         if not final_message and pending_confirmation:
             if confirmation_type == "meal":
                 items = pending_confirmation.get("items", [])
-                item_names = ", ".join(item.get("name", "") for item in items)
+                # Format items with quantities
+                item_strs = []
+                for item in items:
+                    qty = item.get("quantity", 1)
+                    name = item.get("name", "")
+                    if qty > 1:
+                        item_strs.append(f"{int(qty)} {name}s" if not name.endswith("s") else f"{int(qty)} {name}")
+                    else:
+                        item_strs.append(name)
+                item_names = ", ".join(item_strs) if item_strs else "your meal"
                 calories = pending_confirmation.get("calories", 0)
-                final_message = f"I've logged {item_names} ({int(calories)} calories). Please confirm to save."
+                protein = pending_confirmation.get("protein_g", 0)
+                final_message = f"Got it! {item_names} - {int(calories)} cal, {int(protein)}g protein. Hit confirm to log it! 🍳"
             elif confirmation_type == "workout":
                 exercises = pending_confirmation.get("exercises", [])
-                ex_names = ", ".join(ex.get("name", "") for ex in exercises)
-                final_message = f"I've logged your workout: {ex_names}. Please confirm to save."
+                ex_names = ", ".join(ex.get("name", "") for ex in exercises[:3])
+                if len(exercises) > 3:
+                    ex_names += f" +{len(exercises) - 3} more"
+                duration = pending_confirmation.get("duration_min") or pending_confirmation.get("estimated_duration_min", 0)
+                cals = pending_confirmation.get("calories_burned_est") or pending_confirmation.get("estimated_calories_burned", 0)
+                final_message = f"Nice workout! {ex_names} - {int(duration)} min, ~{int(cals)} cal burned. Confirm to log it! 💪"
 
         # Add assistant response to session
         await session.add_message(
@@ -299,20 +313,37 @@ class MCPOrchestrator:
         activity = context.get("activity", {})
         memories = context.get("memories", {})
 
-        prompt = """You are Reppy, a friendly and knowledgeable AI fitness coach.
-Your role is to help users log their meals and workouts, track their progress,
-and provide personalized coaching advice.
+        prompt = """You are Reppy, a friendly and supportive fitness buddy - not a robotic assistant.
 
-IMPORTANT GUIDELINES:
-- Be conversational and encouraging, but concise
-- When a user describes food, ALWAYS use log_meal_suggestion to create a structured log
-- When a user describes exercise, ALWAYS use log_workout_suggestion to create a structured log
-- YOU must estimate calories and macros based on typical nutritional data - never ask the user for these values
+MEAL LOGGING RULE:
+When a user tells you they ate something, prefer to log it IMMEDIATELY with your best estimate.
+Only ask questions if truly necessary for accuracy. Keep questions minimal - 1 question max for most cases.
+For common foods like "chicken sandwich", "pizza", "3 eggs" - just log them immediately without questions.
+Make your best estimate based on a typical version. Use confidence 0.6-0.7 if uncertain about portions.
+Example: "I had a chicken sandwich" → log as typical grilled chicken sandwich (~450 cal) immediately.
+
+PERSONALITY:
+- Talk like a supportive friend, not a formal AI assistant
+- Be warm, casual, and genuinely encouraging
+- Use contractions (I'm, you're, that's, etc.)
+- Keep responses short and natural - don't over-explain
+- Celebrate wins, no matter how small
+- Add personality with occasional emojis where natural (not excessive)
+
+COMMUNICATION STYLE:
+- Instead of "I have logged your meal", say "Got it! Logged that for you 🍳"
+- Instead of "Based on my calculations", say "Looks like that's about..."
+- Instead of "Would you like me to...", just do it and mention what you did
+- Be direct and helpful, not verbose
+- Match the user's energy - if they're brief, be brief back
+
+CORE BEHAVIORS:
+- When a user mentions food they ate, IMMEDIATELY use log_meal_suggestion - NO QUESTIONS
+- When a user mentions exercise, IMMEDIATELY use log_workout_suggestion - NO QUESTIONS
+- YOU must estimate calories and macros - never ask the user for these values
 - Use confidence scores: 0.8-0.9 for common foods with clear portions, 0.6-0.7 for uncertain portions
-- Use metric units (kg, cm) unless user specifies otherwise
-- Provide sugar and portion warnings when relevant
-- Never claim to provide medical advice - you offer educational coaching only
-- CRITICAL: Always call the logging tool with your best estimates. Do not ask follow-up questions about nutrition values.
+- Provide helpful tips naturally, not as a checklist
+- Never claim to provide medical advice
 
 USER PROFILE:
 """

@@ -1,5 +1,6 @@
 """Body measurements endpoints."""
 
+import math
 from datetime import datetime, timezone
 from typing import Annotated
 
@@ -8,10 +9,69 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.middleware.auth import CurrentUser
-from app.infrastructure.database import BodyMeasurement, get_db
+from app.infrastructure.database import BodyMeasurement, UserProfile, get_db
 from app.schemas.progress import BodyMeasurementCreate, BodyMeasurementResponse
 
 router = APIRouter()
+
+
+def calculate_body_fat_us_navy(
+    sex: str,
+    height_cm: float,
+    waist_cm: float,
+    neck_cm: float,
+    hips_cm: float | None = None,
+) -> float | None:
+    """
+    Calculate body fat percentage using the US Navy method.
+
+    For men: BF% = 495 / (1.0324 - 0.19077 * log10(waist - neck) + 0.15456 * log10(height)) - 450
+    For women: BF% = 495 / (1.29579 - 0.35004 * log10(waist + hip - neck) + 0.22100 * log10(height)) - 450
+
+    Args:
+        sex: "male" or "female"
+        height_cm: Height in centimeters
+        waist_cm: Waist circumference in centimeters
+        neck_cm: Neck circumference in centimeters
+        hips_cm: Hip circumference in centimeters (required for females)
+
+    Returns:
+        Body fat percentage or None if calculation not possible
+    """
+    try:
+        if sex == "male":
+            if not all([height_cm, waist_cm, neck_cm]):
+                return None
+            if waist_cm <= neck_cm:
+                return None
+
+            body_fat = (
+                495 / (
+                    1.0324
+                    - 0.19077 * math.log10(waist_cm - neck_cm)
+                    + 0.15456 * math.log10(height_cm)
+                ) - 450
+            )
+        else:  # female
+            if not all([height_cm, waist_cm, neck_cm, hips_cm]):
+                return None
+            if (waist_cm + hips_cm) <= neck_cm:
+                return None
+
+            body_fat = (
+                495 / (
+                    1.29579
+                    - 0.35004 * math.log10(waist_cm + hips_cm - neck_cm)
+                    + 0.22100 * math.log10(height_cm)
+                ) - 450
+            )
+
+        # Clamp to reasonable range
+        body_fat = max(2.0, min(60.0, body_fat))
+        return round(body_fat, 1)
+
+    except (ValueError, ZeroDivisionError):
+        return None
 
 
 @router.get("/", response_model=list[BodyMeasurementResponse])
@@ -37,7 +97,30 @@ async def create_measurement(
     data: BodyMeasurementCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> BodyMeasurementResponse:
-    """Log new body measurements."""
+    """Log new body measurements.
+
+    If body_fat_percentage is not provided, it will be automatically calculated
+    using the US Navy method (requires neck, waist, and hip measurements for females).
+    """
+    body_fat = data.body_fat_percentage
+
+    # Auto-calculate body fat if not provided and we have the required measurements
+    if body_fat is None and data.waist_cm and data.neck_cm:
+        # Get user profile for height and sex
+        result = await db.execute(
+            select(UserProfile).where(UserProfile.user_id == current_user.id)
+        )
+        profile = result.scalar_one_or_none()
+
+        if profile and profile.height_cm and profile.sex:
+            body_fat = calculate_body_fat_us_navy(
+                sex=profile.sex,
+                height_cm=profile.height_cm,
+                waist_cm=data.waist_cm,
+                neck_cm=data.neck_cm,
+                hips_cm=data.hips_cm,
+            )
+
     measurement = BodyMeasurement(
         user_id=current_user.id,
         measured_at=data.measured_at or datetime.now(timezone.utc),
@@ -54,7 +137,7 @@ async def create_measurement(
         right_thigh_cm=data.right_thigh_cm,
         left_calf_cm=data.left_calf_cm,
         right_calf_cm=data.right_calf_cm,
-        body_fat_percentage=data.body_fat_percentage,
+        body_fat_percentage=body_fat,
         notes=data.notes,
     )
     db.add(measurement)
@@ -131,6 +214,103 @@ async def compare_measurements(
         "current_date": current.measured_at.isoformat(),
         "previous_date": previous.measured_at.isoformat(),
         "comparisons": comparisons,
+    }
+
+
+@router.post("/calculate-body-fat")
+async def calculate_body_fat(
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    waist_cm: float = Query(..., gt=0),
+    neck_cm: float = Query(..., gt=0),
+    hips_cm: float | None = Query(None, gt=0),
+) -> dict:
+    """
+    Calculate body fat percentage without saving.
+
+    Uses the US Navy method. Requires waist and neck measurements.
+    Hip measurement is required for females.
+    Uses height and sex from user profile.
+    """
+    # Get user profile for height and sex
+    result = await db.execute(
+        select(UserProfile).where(UserProfile.user_id == current_user.id)
+    )
+    profile = result.scalar_one_or_none()
+
+    if not profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profile not found. Complete onboarding first.",
+        )
+
+    if not profile.height_cm:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Height is required in profile to calculate body fat.",
+        )
+
+    if not profile.sex:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Sex is required in profile to calculate body fat.",
+        )
+
+    if profile.sex == "female" and not hips_cm:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Hip measurement is required for females.",
+        )
+
+    body_fat = calculate_body_fat_us_navy(
+        sex=profile.sex,
+        height_cm=profile.height_cm,
+        waist_cm=waist_cm,
+        neck_cm=neck_cm,
+        hips_cm=hips_cm,
+    )
+
+    if body_fat is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not calculate body fat. Check measurement values.",
+        )
+
+    # Provide category based on sex and body fat percentage
+    if profile.sex == "male":
+        if body_fat < 6:
+            category = "Essential Fat"
+        elif body_fat < 14:
+            category = "Athletic"
+        elif body_fat < 18:
+            category = "Fitness"
+        elif body_fat < 25:
+            category = "Average"
+        else:
+            category = "Above Average"
+    else:  # female
+        if body_fat < 14:
+            category = "Essential Fat"
+        elif body_fat < 21:
+            category = "Athletic"
+        elif body_fat < 25:
+            category = "Fitness"
+        elif body_fat < 32:
+            category = "Average"
+        else:
+            category = "Above Average"
+
+    return {
+        "body_fat_percentage": body_fat,
+        "category": category,
+        "method": "US Navy",
+        "inputs": {
+            "height_cm": profile.height_cm,
+            "waist_cm": waist_cm,
+            "neck_cm": neck_cm,
+            "hips_cm": hips_cm,
+            "sex": profile.sex,
+        },
     }
 
 
