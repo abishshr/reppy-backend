@@ -1,0 +1,67 @@
+# Render Blueprint - Deploy Reppy Backend
+# Documentation: https://render.com/docs/blueprint-spec
+
+services:
+  # Main API Service
+  - type: web
+    name: reppy-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter  # $7/month, upgrade to standard for production
+    region: oregon  # or singapore, frankfurt, ohio
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: reppy-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: reppy-redis
+          type: redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRATION_HOURS
+        value: 24
+      - key: GEMINI_API_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: GEMINI_MODEL
+        value: gemini-1.5-pro
+      - key: USDA_API_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: APPLE_TEAM_ID
+        sync: false
+      - key: APPLE_KEY_ID
+        sync: false
+      - key: APPLE_BUNDLE_ID
+        value: com.abish.reppy
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: meal-images
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: false
+
+  # Redis for caching
+  - type: redis
+    name: reppy-redis
+    plan: starter  # $7/month
+    region: oregon
+    ipAllowList: []  # Only allow internal connections
+    maxmemoryPolicy: allkeys-lru
+
+# PostgreSQL Database
+databases:
+  - name: reppy-db
+    plan: starter  # $7/month, 1GB storage
+    region: oregon
+    postgresMajorVersion: 15
+    ipAllowList: []  # Only allow internal connections
