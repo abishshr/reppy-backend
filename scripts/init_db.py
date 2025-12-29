@@ -17,7 +17,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import text
-from app.infrastructure.database.connection import async_engine
+from app.infrastructure.database.connection import engine
 
 
 # Columns that may be missing from user_profiles table
@@ -118,7 +118,7 @@ async def init_database():
     """Initialize database schema - add missing columns and tables."""
     print("Initializing database schema...")
 
-    async with async_engine.begin() as conn:
+    async with engine.begin() as conn:
         # Add missing columns to user_profiles
         print("\nChecking user_profiles columns...")
         for column, dtype, default in USER_PROFILE_COLUMNS:
