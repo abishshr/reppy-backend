@@ -37,7 +37,8 @@ class Settings(BaseSettings):
     # Apple Sign-In
     apple_team_id: str = ""
     apple_key_id: str = ""
-    apple_bundle_id: str = "com.reppy.app"
+    apple_bundle_id: str = "com.abish.reppy"
+    apple_private_key: str = ""  # Contents of .p8 file
 
     # External APIs
     usda_api_key: str = ""

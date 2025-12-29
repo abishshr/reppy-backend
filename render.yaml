@@ -39,6 +39,8 @@ services:
         sync: false
       - key: APPLE_BUNDLE_ID
         value: com.abish.reppy
+      - key: APPLE_PRIVATE_KEY
+        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_KEY
