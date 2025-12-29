@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from app.config import settings
-from app.infrastructure.database.connection import Base
+from app.infrastructure.database.connection import Base, get_async_database_url
 # Import all models so Alembic can detect them
 from app.infrastructure.database import models  # noqa: F401
 
@@ -21,7 +21,8 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Convert URL to async format for asyncpg
+config.set_main_option("sqlalchemy.url", get_async_database_url(settings.database_url))
 
 
 def run_migrations_offline() -> None:

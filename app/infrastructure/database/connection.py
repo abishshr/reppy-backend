@@ -7,8 +7,17 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.config import settings
 
+
+def get_async_database_url(url: str) -> str:
+    """Convert database URL to async format for asyncpg."""
+    # Render/Heroku provide postgresql:// but asyncpg needs postgresql+asyncpg://
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return url
+
+
 engine = create_async_engine(
-    settings.database_url,
+    get_async_database_url(settings.database_url),
     echo=settings.debug,
     pool_pre_ping=True,
     pool_size=5,
