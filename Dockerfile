@@ -21,5 +21,5 @@ USER appuser
 
 EXPOSE 8000
 
-# Run migrations and start server
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2"]
+# Initialize database schema (add missing columns/tables), stamp alembic, then start server
+CMD ["sh", "-c", "python scripts/init_db.py && alembic stamp head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2"]
