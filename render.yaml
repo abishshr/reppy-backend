@@ -8,8 +8,8 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    plan: starter  # $7/month, upgrade to standard for production
-    region: oregon  # or singapore, frankfurt, ohio
+    plan: free  # Use 'starter' ($7/mo) for always-on
+    region: oregon
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
@@ -28,11 +28,11 @@ services:
       - key: JWT_EXPIRATION_HOURS
         value: 24
       - key: GEMINI_API_KEY
-        sync: false  # Set manually in Render dashboard
+        sync: false
       - key: GEMINI_MODEL
         value: gemini-1.5-pro
       - key: USDA_API_KEY
-        sync: false  # Set manually in Render dashboard
+        sync: false
       - key: APPLE_TEAM_ID
         sync: false
       - key: APPLE_KEY_ID
@@ -53,15 +53,15 @@ services:
   # Redis for caching
   - type: redis
     name: reppy-redis
-    plan: starter  # $7/month
+    plan: free  # Use 'starter' ($10/mo) for persistence
     region: oregon
-    ipAllowList: []  # Only allow internal connections
+    ipAllowList: []
     maxmemoryPolicy: allkeys-lru
 
 # PostgreSQL Database
 databases:
   - name: reppy-db
-    plan: starter  # $7/month, 1GB storage
+    plan: free  # Use 'basic' ($7/mo) for production
     region: oregon
     postgresMajorVersion: 15
-    ipAllowList: []  # Only allow internal connections
+    ipAllowList: []
