@@ -19,8 +19,7 @@ COPY . .
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Run database migrations on startup, then start server
 EXPOSE 8000
 
-# Use Gunicorn for production with Uvicorn workers
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2"]
+# Create tables and start server
+CMD ["sh", "-c", "python -c 'from app.infrastructure.database.connection import Base, engine; import asyncio; from app.infrastructure.database import models; asyncio.run(engine.dispose())' && python scripts/init_db.py && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2"]
