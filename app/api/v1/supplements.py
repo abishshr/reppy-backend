@@ -92,6 +92,111 @@ async def list_supplements(
     return supplements
 
 
+# NOTE: /today must come BEFORE /{supplement_id} to avoid route collision
+@router.get("/today", response_model=TodaySupplementSummary)
+async def get_today_summary(
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get today's supplement summary with totals."""
+    from datetime import datetime
+    today = datetime.utcnow().date()
+    start_of_day = datetime.combine(today, datetime.min.time())
+    end_of_day = datetime.combine(today, datetime.max.time())
+
+    result = await db.execute(
+        select(SupplementLog)
+        .options(selectinload(SupplementLog.supplement))
+        .where(
+            and_(
+                SupplementLog.user_id == user_id,
+                SupplementLog.logged_at >= start_of_day,
+                SupplementLog.logged_at <= end_of_day,
+            )
+        )
+    )
+    logs = result.scalars().all()
+
+    # Calculate totals
+    supplements_taken = list(set(log.supplement.name for log in logs))
+
+    # Initialize totals
+    totals = {
+        "total_vitamin_a_mcg": 0.0,
+        "total_vitamin_c_mg": 0.0,
+        "total_vitamin_d_mcg": 0.0,
+        "total_vitamin_e_mg": 0.0,
+        "total_vitamin_k_mcg": 0.0,
+        "total_vitamin_b1_mg": 0.0,
+        "total_vitamin_b2_mg": 0.0,
+        "total_vitamin_b3_mg": 0.0,
+        "total_vitamin_b6_mg": 0.0,
+        "total_vitamin_b9_mcg": 0.0,
+        "total_vitamin_b12_mcg": 0.0,
+        "total_calcium_mg": 0.0,
+        "total_iron_mg": 0.0,
+        "total_magnesium_mg": 0.0,
+        "total_phosphorus_mg": 0.0,
+        "total_potassium_mg": 0.0,
+        "total_zinc_mg": 0.0,
+        "total_selenium_mcg": 0.0,
+        "total_copper_mcg": 0.0,
+        "total_manganese_mg": 0.0,
+    }
+
+    # Sum up all nutrients from logged supplements
+    for log in logs:
+        supp = log.supplement
+        servings = log.servings
+
+        if supp.vitamin_a_mcg:
+            totals["total_vitamin_a_mcg"] += supp.vitamin_a_mcg * servings
+        if supp.vitamin_c_mg:
+            totals["total_vitamin_c_mg"] += supp.vitamin_c_mg * servings
+        if supp.vitamin_d_mcg:
+            totals["total_vitamin_d_mcg"] += supp.vitamin_d_mcg * servings
+        if supp.vitamin_e_mg:
+            totals["total_vitamin_e_mg"] += supp.vitamin_e_mg * servings
+        if supp.vitamin_k_mcg:
+            totals["total_vitamin_k_mcg"] += supp.vitamin_k_mcg * servings
+        if supp.vitamin_b1_mg:
+            totals["total_vitamin_b1_mg"] += supp.vitamin_b1_mg * servings
+        if supp.vitamin_b2_mg:
+            totals["total_vitamin_b2_mg"] += supp.vitamin_b2_mg * servings
+        if supp.vitamin_b3_mg:
+            totals["total_vitamin_b3_mg"] += supp.vitamin_b3_mg * servings
+        if supp.vitamin_b6_mg:
+            totals["total_vitamin_b6_mg"] += supp.vitamin_b6_mg * servings
+        if supp.vitamin_b9_mcg:
+            totals["total_vitamin_b9_mcg"] += supp.vitamin_b9_mcg * servings
+        if supp.vitamin_b12_mcg:
+            totals["total_vitamin_b12_mcg"] += supp.vitamin_b12_mcg * servings
+        if supp.calcium_mg:
+            totals["total_calcium_mg"] += supp.calcium_mg * servings
+        if supp.iron_mg:
+            totals["total_iron_mg"] += supp.iron_mg * servings
+        if supp.magnesium_mg:
+            totals["total_magnesium_mg"] += supp.magnesium_mg * servings
+        if supp.phosphorus_mg:
+            totals["total_phosphorus_mg"] += supp.phosphorus_mg * servings
+        if supp.potassium_mg:
+            totals["total_potassium_mg"] += supp.potassium_mg * servings
+        if supp.zinc_mg:
+            totals["total_zinc_mg"] += supp.zinc_mg * servings
+        if supp.selenium_mcg:
+            totals["total_selenium_mcg"] += supp.selenium_mcg * servings
+        if supp.copper_mcg:
+            totals["total_copper_mcg"] += supp.copper_mcg * servings
+        if supp.manganese_mg:
+            totals["total_manganese_mg"] += supp.manganese_mg * servings
+
+    return TodaySupplementSummary(
+        total_logs=len(logs),
+        supplements_taken=supplements_taken,
+        **totals,
+    )
+
+
 @router.get("/{supplement_id}", response_model=SupplementResponse)
 async def get_supplement(
     supplement_id: str,
@@ -253,109 +358,6 @@ async def get_today_logs(
         )
         for log in logs
     ]
-
-
-@router.get("/today", response_model=TodaySupplementSummary)
-async def get_today_summary(
-    user_id: str = Depends(get_current_user_id),
-    db: AsyncSession = Depends(get_db),
-):
-    """Get today's supplement summary with totals."""
-    today = datetime.utcnow().date()
-    start_of_day = datetime.combine(today, datetime.min.time())
-    end_of_day = datetime.combine(today, datetime.max.time())
-
-    result = await db.execute(
-        select(SupplementLog)
-        .options(selectinload(SupplementLog.supplement))
-        .where(
-            and_(
-                SupplementLog.user_id == user_id,
-                SupplementLog.logged_at >= start_of_day,
-                SupplementLog.logged_at <= end_of_day,
-            )
-        )
-    )
-    logs = result.scalars().all()
-
-    # Calculate totals
-    supplements_taken = list(set(log.supplement.name for log in logs))
-
-    # Initialize totals
-    totals = {
-        "total_vitamin_a_mcg": 0.0,
-        "total_vitamin_c_mg": 0.0,
-        "total_vitamin_d_mcg": 0.0,
-        "total_vitamin_e_mg": 0.0,
-        "total_vitamin_k_mcg": 0.0,
-        "total_vitamin_b1_mg": 0.0,
-        "total_vitamin_b2_mg": 0.0,
-        "total_vitamin_b3_mg": 0.0,
-        "total_vitamin_b6_mg": 0.0,
-        "total_vitamin_b9_mcg": 0.0,
-        "total_vitamin_b12_mcg": 0.0,
-        "total_calcium_mg": 0.0,
-        "total_iron_mg": 0.0,
-        "total_magnesium_mg": 0.0,
-        "total_phosphorus_mg": 0.0,
-        "total_potassium_mg": 0.0,
-        "total_zinc_mg": 0.0,
-        "total_selenium_mcg": 0.0,
-        "total_copper_mcg": 0.0,
-        "total_manganese_mg": 0.0,
-    }
-
-    # Sum up all nutrients from logged supplements
-    for log in logs:
-        supp = log.supplement
-        servings = log.servings
-
-        if supp.vitamin_a_mcg:
-            totals["total_vitamin_a_mcg"] += supp.vitamin_a_mcg * servings
-        if supp.vitamin_c_mg:
-            totals["total_vitamin_c_mg"] += supp.vitamin_c_mg * servings
-        if supp.vitamin_d_mcg:
-            totals["total_vitamin_d_mcg"] += supp.vitamin_d_mcg * servings
-        if supp.vitamin_e_mg:
-            totals["total_vitamin_e_mg"] += supp.vitamin_e_mg * servings
-        if supp.vitamin_k_mcg:
-            totals["total_vitamin_k_mcg"] += supp.vitamin_k_mcg * servings
-        if supp.vitamin_b1_mg:
-            totals["total_vitamin_b1_mg"] += supp.vitamin_b1_mg * servings
-        if supp.vitamin_b2_mg:
-            totals["total_vitamin_b2_mg"] += supp.vitamin_b2_mg * servings
-        if supp.vitamin_b3_mg:
-            totals["total_vitamin_b3_mg"] += supp.vitamin_b3_mg * servings
-        if supp.vitamin_b6_mg:
-            totals["total_vitamin_b6_mg"] += supp.vitamin_b6_mg * servings
-        if supp.vitamin_b9_mcg:
-            totals["total_vitamin_b9_mcg"] += supp.vitamin_b9_mcg * servings
-        if supp.vitamin_b12_mcg:
-            totals["total_vitamin_b12_mcg"] += supp.vitamin_b12_mcg * servings
-        if supp.calcium_mg:
-            totals["total_calcium_mg"] += supp.calcium_mg * servings
-        if supp.iron_mg:
-            totals["total_iron_mg"] += supp.iron_mg * servings
-        if supp.magnesium_mg:
-            totals["total_magnesium_mg"] += supp.magnesium_mg * servings
-        if supp.phosphorus_mg:
-            totals["total_phosphorus_mg"] += supp.phosphorus_mg * servings
-        if supp.potassium_mg:
-            totals["total_potassium_mg"] += supp.potassium_mg * servings
-        if supp.zinc_mg:
-            totals["total_zinc_mg"] += supp.zinc_mg * servings
-        if supp.selenium_mcg:
-            totals["total_selenium_mcg"] += supp.selenium_mcg * servings
-        if supp.copper_mcg:
-            totals["total_copper_mcg"] += supp.copper_mcg * servings
-        if supp.manganese_mg:
-            totals["total_manganese_mg"] += supp.manganese_mg * servings
-
-    return TodaySupplementSummary(
-        total_logs=len(logs),
-        supplements_taken=supplements_taken,
-        **totals,
-    )
 
 
 @router.delete("/log/{log_id}", status_code=status.HTTP_204_NO_CONTENT)
