@@ -10,6 +10,12 @@ Run before starting the server to ensure database is in correct state.
 """
 
 import asyncio
+import os
+import sys
+
+# Add parent directory to path so we can import app modules
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from sqlalchemy import text
 from app.infrastructure.database.connection import async_engine
 
