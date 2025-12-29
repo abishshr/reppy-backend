@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     # AI - Gemini
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-1.5-pro"
+    gemini_model: str = "gemini-2.0-flash"
 
     # JWT Auth
     jwt_secret: str = "dev_secret_change_in_production"
