@@ -124,16 +124,15 @@ class GenerateMealPlanTool(BaseTool):
     """Generate a personalized meal plan based on user's profile and goals."""
 
     name = "generate_meal_plan"
-    description = """Generate a weekly meal plan tailored to the user's goals and dietary preferences. You MUST provide the complete meal data in the 'plan' parameter.
+    description = """Save a meal plan. The 'plan' parameter MUST contain complete meal data as a JSON array string.
 
-CRITICAL: The 'plan' parameter is REQUIRED and must contain a JSON array string with all days.
+REQUIRED: You must generate the meal content yourself and pass it in 'plan'.
 
-Example plan format (you must generate similar but complete data for 7 days):
-[{"day":1,"meals":[{"type":"breakfast","name":"Oatmeal with Berries","description":"Hearty oatmeal topped with fresh berries","calories":350,"protein_g":12,"carbs_g":50,"fat_g":10,"sugar_g":8,"fiber_g":6,"sodium_mg":150,"saturated_fat_g":2},{"type":"lunch","name":"Grilled Chicken Salad","description":"Mixed greens with grilled chicken","calories":400,"protein_g":35,"carbs_g":15,"fat_g":18,"sugar_g":5,"fiber_g":4,"sodium_mg":450,"saturated_fat_g":3},{"type":"dinner","name":"Salmon with Vegetables","description":"Baked salmon with roasted vegetables","calories":500,"protein_g":40,"carbs_g":25,"fat_g":22,"sugar_g":6,"fiber_g":8,"sodium_mg":380,"saturated_fat_g":4},{"type":"snack","name":"Greek Yogurt","description":"Plain Greek yogurt with honey","calories":150,"protein_g":15,"carbs_g":12,"fat_g":3,"sugar_g":10,"fiber_g":0,"sodium_mg":60,"saturated_fat_g":1}],"total_calories":1400,"total_protein":102,"total_carbs":102,"total_fat":53}]
+Minimal example:
+[{"day":1,"meals":[{"type":"breakfast","name":"Oatmeal","calories":350,"protein_g":12,"carbs_g":50,"fat_g":10},{"type":"lunch","name":"Chicken Salad","calories":500,"protein_g":40,"carbs_g":25,"fat_g":22},{"type":"dinner","name":"Salmon Rice","calories":650,"protein_g":45,"carbs_g":55,"fat_g":25},{"type":"snack","name":"Greek Yogurt","calories":200,"protein_g":15,"carbs_g":12,"fat_g":8}],"total_calories":1700,"total_protein":112}]
 
-IMPORTANT: Always include micronutrients for each meal: sugar_g, fiber_g, sodium_mg, saturated_fat_g (estimate based on typical values for the food).
-
-Generate 7 days of meals with breakfast, lunch, dinner, and snack for each day."""
+Each meal needs: type, name, calories, protein_g, carbs_g, fat_g
+Optional: description, ingredients, instructions, prep_time_min, cook_time_min"""
 
     parameters = {
         "days": {
@@ -148,7 +147,7 @@ Generate 7 days of meals with breakfast, lunch, dinner, and snack for each day."
         },
         "plan": {
             "type": "string",
-            "description": "REQUIRED: JSON array string of days. Each day: {day, meals:[{type, name, description, calories, protein_g, carbs_g, fat_g}], total_calories, total_protein, total_carbs, total_fat}",
+            "description": "REQUIRED: JSON array with meal data YOU generated. Must NOT be empty. Example: [{\"day\":1,\"meals\":[{\"type\":\"breakfast\",\"name\":\"Eggs\",\"calories\":300,\"protein_g\":20,\"carbs_g\":5,\"fat_g\":22}],\"total_calories\":1800}]",
         },
     }
 
@@ -188,10 +187,10 @@ Generate 7 days of meals with breakfast, lunch, dinner, and snack for each day."
 
         print(f"[GenerateMealPlanTool] plan_data type: {type(plan_data)}, length: {len(plan_data) if isinstance(plan_data, list) else 'N/A'}")
 
-        if not plan_data:
+        if not plan_data or (isinstance(plan_data, list) and len(plan_data) == 0):
             return ToolResult(
                 success=False,
-                error="No meal plan data provided",
+                error="ERROR: You passed an empty plan. You MUST generate meal data yourself. Create meals with name, calories, protein_g, carbs_g, fat_g for each day, then call this tool again with the complete plan data.",
             )
 
         # Get user profile for defaults
@@ -199,19 +198,6 @@ Generate 7 days of meals with breakfast, lunch, dinner, and snack for each day."
             select(UserProfile).where(UserProfile.user_id == self.user_id)
         )
         profile = result.scalar_one_or_none()
-
-        # Get diet and allergies from profile for enrichment
-        diet = profile.diet_style if profile else None
-        allergies = profile.allergies if profile else []
-
-        # Enrich all meals with recipes and images BEFORE storing
-        print(f"[GenerateMealPlanTool] Enriching meals with recipes and images...")
-        try:
-            plan_data = await enrich_all_meals(plan_data, diet, allergies)
-            print(f"[GenerateMealPlanTool] Enrichment complete")
-        except Exception as e:
-            print(f"[GenerateMealPlanTool] Enrichment failed (continuing without): {e}")
-            # Continue without enrichment - meals will still be saved
 
         # Create meal plan
         start_date = datetime.now(timezone.utc)
@@ -261,6 +247,28 @@ Generate 7 days of meals with breakfast, lunch, dinner, and snack for each day."
 
         await self.db.commit()
 
+        # Build plan preview for UI display
+        plan_preview = []
+        for idx, day_data in enumerate(plan_data):
+            if isinstance(day_data, dict):
+                day_number = day_data.get("day", idx + 1)
+                meals = day_data.get("meals", [])
+                plan_preview.append({
+                    "day_number": day_number,
+                    "day_name": (start_date + timedelta(days=day_number - 1)).strftime("%A"),
+                    "meals": [
+                        {
+                            "type": m.get("type", "meal"),
+                            "name": m.get("name", "Meal"),
+                            "calories": m.get("calories"),
+                            "protein_g": m.get("protein_g"),
+                        }
+                        for m in meals
+                    ],
+                    "total_calories": day_data.get("total_calories"),
+                    "total_protein": day_data.get("total_protein"),
+                })
+
         return ToolResult(
             success=True,
             data={
@@ -269,6 +277,7 @@ Generate 7 days of meals with breakfast, lunch, dinner, and snack for each day."
                 "days": len(plan_data),
                 "start_date": start_date.isoformat(),
                 "end_date": end_date.isoformat(),
+                "plan": plan_preview,  # Include plan data for UI preview
             },
         )
 

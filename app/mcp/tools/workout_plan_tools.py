@@ -15,14 +15,15 @@ class GenerateWorkoutPlanTool(BaseTool):
     """Generate a personalized workout plan based on user's profile and goals."""
 
     name = "generate_workout_plan"
-    description = """Generate and save a multi-week workout program. You MUST provide the complete workout data in the 'plan' parameter.
+    description = """Save a workout plan. The 'plan' parameter MUST contain complete workout data as a JSON array string.
 
-CRITICAL: The 'plan' parameter is REQUIRED and must contain a JSON array string with all workout days.
+REQUIRED: You must generate the workout content yourself and pass it in 'plan'.
 
-Example plan format (you must generate similar but complete data):
-[{"week":1,"day":1,"day_name":"Push Day","workout_type":"strength","is_rest_day":false,"exercises":[{"name":"Bench Press","sets":4,"reps":"8-10","weight_suggestion":"moderate","rest_sec":90,"notes":"Control the descent"},{"name":"Shoulder Press","sets":3,"reps":"10-12","weight_suggestion":"light to moderate","rest_sec":60,"notes":"Keep core tight"}],"target_muscles":["chest","shoulders","triceps"],"estimated_duration_min":45,"notes":"Focus on mind-muscle connection"}]
+Minimal example:
+[{"week":1,"day":1,"day_name":"Upper Body","workout_type":"strength","is_rest_day":false,"exercises":[{"name":"Bench Press","sets":3,"reps":"8-10"},{"name":"Rows","sets":3,"reps":"8-10"}],"target_muscles":["chest","back"],"estimated_duration_min":45}]
 
-Generate 16+ workout days for a 4-week program (4 days/week). Include varied exercises appropriate for the user's equipment and goals."""
+Each workout day needs: week, day, day_name, exercises (with name, sets, reps)
+Optional: workout_type, is_rest_day, target_muscles, estimated_duration_min, notes"""
 
     parameters = {
         "weeks": {
@@ -52,7 +53,7 @@ Generate 16+ workout days for a 4-week program (4 days/week). Include varied exe
         },
         "plan": {
             "type": "string",
-            "description": "REQUIRED: JSON array string of workout days. Each day: {week, day, day_name, workout_type, is_rest_day, exercises:[{name, sets, reps, weight_suggestion, rest_sec, notes}], target_muscles, estimated_duration_min, notes}",
+            "description": "REQUIRED: JSON array with workout data YOU generated. Must NOT be empty. Example: [{\"week\":1,\"day\":1,\"day_name\":\"Upper\",\"exercises\":[{\"name\":\"Bench Press\",\"sets\":3,\"reps\":\"10\"}]}]",
         },
     }
 
@@ -101,10 +102,10 @@ Generate 16+ workout days for a 4-week program (4 days/week). Include varied exe
 
         print(f"[GenerateWorkoutPlanTool] plan_data type: {type(plan_data)}, length: {len(plan_data) if isinstance(plan_data, list) else 'N/A'}")
 
-        if not plan_data:
+        if not plan_data or (isinstance(plan_data, list) and len(plan_data) == 0):
             return ToolResult(
                 success=False,
-                error="No workout plan data provided",
+                error="ERROR: You passed an empty plan. You MUST generate workout data yourself. Create workout days with exercises (name, sets, reps) for each day, then call this tool again with the complete plan data.",
             )
 
         # Get user profile for context
@@ -171,6 +172,26 @@ Generate 16+ workout days for a 4-week program (4 days/week). Include varied exe
 
         await self.db.commit()
 
+        # Build plan preview for UI display
+        plan_preview = []
+        for day_data in plan_data:
+            if isinstance(day_data, dict) and not day_data.get("is_rest_day", False):
+                exercises = day_data.get("exercises", [])
+                plan_preview.append({
+                    "day_number": day_data.get("day", 1),
+                    "day_name": day_data.get("day_name", "Workout"),
+                    "exercises": [
+                        {
+                            "name": e.get("name", "Exercise"),
+                            "sets": e.get("sets"),
+                            "reps": str(e.get("reps", "")) if e.get("reps") else None,
+                        }
+                        for e in exercises[:6]  # Limit to 6 exercises for preview
+                    ],
+                    "total_exercises": len(exercises),
+                    "estimated_duration_min": day_data.get("estimated_duration_min"),
+                })
+
         return ToolResult(
             success=True,
             data={
@@ -181,6 +202,7 @@ Generate 16+ workout days for a 4-week program (4 days/week). Include varied exe
                 "total_workout_days": workout_days_created,
                 "goal": goal,
                 "split_type": split_type,
+                "plan": plan_preview,  # Include plan data for UI preview
             },
         )
 

@@ -62,8 +62,12 @@ class GeminiClient:
             else:
                 print("[GeminiClient] Failed to create image part")
 
-        # Create chat with system instruction
-        chat = self.model.start_chat(history=contents[:-1] if len(contents) > 1 else [])
+        # Create model with system instruction
+        model_with_system = genai.GenerativeModel(
+            settings.gemini_model,
+            system_instruction=system_prompt,
+        )
+        chat = model_with_system.start_chat(history=contents[:-1] if len(contents) > 1 else [])
 
         # Get all parts from the last message (text + image if present)
         last_message_parts = contents[-1]["parts"] if contents else [""]

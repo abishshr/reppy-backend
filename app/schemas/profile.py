@@ -1,8 +1,9 @@
 """User profile schemas."""
 
 from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ProfileCreate(BaseModel):
@@ -69,14 +70,15 @@ class ProfileResponse(BaseModel):
     height_cm: float | None
     weight_kg: float | None
     activity_level: str | None
-    goals: list[str]
+    goals: list[str] = Field(default_factory=list)
     diet_style: str | None
-    allergies: list[str]
-    injuries: list[str]
-    medical_conditions: list[str]
-    preferred_ingredients: list[str]
-    equipment: list[str]
+    allergies: list[str] = Field(default_factory=list)
+    injuries: list[str] = Field(default_factory=list)
+    medical_conditions: list[str] = Field(default_factory=list)
+    preferred_ingredients: list[str] = Field(default_factory=list)
+    equipment: list[str] = Field(default_factory=list)
     timezone: str | None
+
     daily_calorie_target: int | None
     daily_protein_target: float | None
     daily_carbs_target: float | None
@@ -91,6 +93,14 @@ class ProfileResponse(BaseModel):
     onboarding_completed: bool
     created_at: datetime
     updated_at: datetime
+
+    @field_validator('goals', 'allergies', 'injuries', 'medical_conditions', 'preferred_ingredients', 'equipment', mode='before')
+    @classmethod
+    def convert_none_to_list(cls, v: Any) -> list[str]:
+        """Convert None values to empty lists."""
+        if v is None:
+            return []
+        return v
 
     class Config:
         from_attributes = True
