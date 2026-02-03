@@ -15,6 +15,7 @@ from app.infrastructure.external.spoonacular import get_spoonacular_client
 from app.infrastructure.external.unsplash import get_unsplash_client
 from app.infrastructure.ai.gemini_client import GeminiClient
 from app.config import settings
+from app.core.utils import clean_quantity
 
 router = APIRouter()
 
@@ -171,6 +172,17 @@ class GroceryListResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+def clean_grocery_items(items: list[dict]) -> list[dict]:
+    """Clean quantity values in grocery items to remove trailing zeros."""
+    cleaned = []
+    for item in items:
+        cleaned_item = item.copy()
+        if "quantity" in cleaned_item:
+            cleaned_item["quantity"] = float(clean_quantity(cleaned_item["quantity"]))
+        cleaned.append(cleaned_item)
+    return cleaned
 
 
 # MARK: - Meal Plan Endpoints
@@ -342,7 +354,7 @@ async def get_grocery_lists(
             id=gl.id,
             name=gl.name,
             meal_plan_id=gl.meal_plan_id,
-            items=gl.items,
+            items=clean_grocery_items(gl.items),
             created_at=gl.created_at,
         )
         for gl in lists
@@ -373,7 +385,7 @@ async def get_grocery_list(
         id=gl.id,
         name=gl.name,
         meal_plan_id=gl.meal_plan_id,
-        items=gl.items,
+        items=clean_grocery_items(gl.items),
         created_at=gl.created_at,
     )
 
@@ -605,6 +617,12 @@ async def get_meal_recipe(
     except Exception as e:
         print(f"Failed to get meal image: {e}")
 
+    # Clean up ingredient amounts (remove trailing zeros like "250.000 g" -> "250 g")
+    ingredients = recipe.get("ingredients", [])
+    for ing in ingredients:
+        if "amount" in ing:
+            ing["amount"] = clean_quantity(ing["amount"])
+
     return RecipeResponse(
         name=recipe.get("name", request.meal_name),
         description=recipe.get("description", ""),
@@ -612,7 +630,7 @@ async def get_meal_recipe(
         cook_time_minutes=recipe.get("cook_time_minutes", 20),
         servings=recipe.get("servings", 2),
         difficulty=recipe.get("difficulty", "easy"),
-        ingredients=recipe.get("ingredients", []),
+        ingredients=ingredients,
         instructions=recipe.get("instructions", []),
         tips=recipe.get("tips", []),
         nutrition_notes=recipe.get("nutrition_notes", ""),

@@ -13,6 +13,7 @@ from app.infrastructure.redis.client import redis_client
 from app.infrastructure.external.spoonacular import get_spoonacular_client
 from app.infrastructure.ai.gemini_client import GeminiClient
 from app.mcp.tools.base import BaseTool, ToolResult
+from app.core.utils import clean_quantity
 
 
 async def generate_recipe_for_meal(meal_name: str, meal_type: str, diet: str = None, allergies: list = None) -> dict:
@@ -43,7 +44,13 @@ Respond with ONLY valid JSON (no markdown):
         # Extract JSON
         json_match = re.search(r'\{[\s\S]*\}', response)
         if json_match:
-            return json.loads(json_match.group())
+            recipe = json.loads(json_match.group())
+            # Clean ingredient amounts (remove trailing zeros like "250.000 g" -> "250 g")
+            if "ingredients" in recipe:
+                for ing in recipe["ingredients"]:
+                    if "amount" in ing:
+                        ing["amount"] = clean_quantity(ing["amount"])
+            return recipe
     except Exception as e:
         print(f"[MealPlanTools] Recipe generation error for {meal_name}: {e}")
 
