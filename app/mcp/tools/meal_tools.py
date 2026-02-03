@@ -59,19 +59,23 @@ class LogMealSuggestionTool(BaseTool):
         },
         "estimated_sugar_g": {
             "type": "number",
-            "description": "Estimated sugar in grams (REQUIRED)",
+            "description": "Estimated sugar in grams",
+            "optional": True,
         },
         "estimated_fiber_g": {
             "type": "number",
-            "description": "Estimated fiber in grams (REQUIRED)",
+            "description": "Estimated fiber in grams",
+            "optional": True,
         },
         "estimated_sodium_mg": {
             "type": "number",
-            "description": "Estimated sodium in milligrams (REQUIRED)",
+            "description": "Estimated sodium in milligrams",
+            "optional": True,
         },
         "estimated_saturated_fat_g": {
             "type": "number",
-            "description": "Estimated saturated fat in grams (REQUIRED)",
+            "description": "Estimated saturated fat in grams",
+            "optional": True,
         },
         "estimated_cholesterol_mg": {
             "type": "number",
